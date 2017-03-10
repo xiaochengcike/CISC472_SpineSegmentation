@@ -3,6 +3,8 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
+import sitkUtils
+import SimpleITK
 
 """
 Justin Gerolami - 10160479
@@ -66,8 +68,6 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  
-
 
 #
 #SpineSegmentationTest
@@ -91,17 +91,83 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     self.setUp()
     self.test_SpineSegmentation1()
 
+  def getImageFileName(self, imagePath):
+    """
+    :param imagePath: a path to the image
+    :return: the image name with extension
+    """
+    #Loop through the reverse string, check if /
+    for i in range(len(imagePath)-1, -1, -1):
+      #if its '/' then return everything to the right (the file name)
+      if imagePath[i] == '/':
+        return imagePath[i:]
+    #There is no '/' so the imagePath should just be the file name.
+    return imagePath
+
+  def getImageName(self, imageName):
+    '''
+    :param imageName: The name of the image with extension and maybe starting '/'
+    :return: The name of just the image
+    '''
+    #Check if there is a leading '/' and remove it
+    if imageName[0] == '/':
+      imageName = imageName[1:]
+    #Get the location of the first '.' ex. testImage.nrrd would return location of '.'
+    periodLocation = imageName.find(".")
+    #If we found a '.'
+    if periodLocation != -1:
+      #return the name from beginning to the '.' ex. testImage.nrrd returns testImage
+      return imageName[:periodLocation]
+    else:
+      #returns the image name if no '.' was found
+      return imageName
+
+
+  def loadImage(self, imagePath):
+    """
+    :param imagePah: takes the image path as a parameter.
+    :return: the image pulled from slicer
+    """
+    #Load the image from a hard-coded path
+    #Future updates can allow the user to change this
+    slicer.util.loadVolume(imagePath)
+    #Get the file name and extension
+    imageName = self.getImageFileName(imagePath)
+    #Now we want just the filename
+    imageName = self.getImageName(imageName)
+    #We want to get the image name, which is after the last '/'
+    #Now that we have the image loaded, pull the name from slicer.
+    loadedImage = sitkUtils.PullFromSlicer(imageName)
+    return loadedImage
+
+
+  def addFilterToImage(self, image):
+    '''
+    :param image: The image that requires a filter
+    :return: None, adds the filter and adds to slicer
+    '''
+    #Use the gaussian image filter for smoothing
+    #https://itk.org/SimpleITKDoxygen/html/classitk_1_1simple_1_1SmoothingRecursiveGaussianImageFilter.html#details
+
+    #Will experiment with others later
+    imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
+    #Execute the filter on the image
+    smoothedImage = imageFilter.Execute(image)
+    #Add it to slicer
+    sitkUtils.PushToSlicer(smoothedImage, 'Smoothed Image')
+
+
   def test_SpineSegmentation1(self):
-    """ Ideally you should have several levels of tests.  At the lowest level
-    tests should exercise the functionality of the logic with different inputs
-    (both valid and invalid).  At higher levels your tests should emulate the
-    way the user would interact with your code and confirm that it still works
-    the way you intended.
-    One of the most important features of the tests is that it should alert other
-    developers when their changes will have an impact on the behavior of your
-    module.  For example, if a developer removes a feature that you depend on,
-    your test should break so they know that the feature is needed.
+    """
+    test_SpineSegmentation1 is a test that will load an image from a file path, display the image, and run a filter
+    on the image to smooth it out.
     """
 
-    self.delayDisplay("Module Runs")
+    self.delayDisplay("Running test to load and smooth image.")
+    #Load the image
+    testImage = self.loadImage("/Users/Justin/GitHub/CISC472_SpineSegmentation/SpineData/007.CTDC.nrrd")
+    #Add the filter
+    self.addFilterToImage(testImage)
+    self.delayDisplay("Testing complete.")
+
     
