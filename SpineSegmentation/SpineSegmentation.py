@@ -45,6 +45,40 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
+    #Create the 'parameters' drop down in the module
+    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+    parametersCollapsibleButton.text = "Parameters"
+    self.layout.addWidget(parametersCollapsibleButton)
+    parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
+
+    #Create a slider that allows user to set min threshold
+    self.minThresholdSlider = ctk.ctkSliderWidget()
+    self.minThresholdSlider.singleStep = 1
+    self.minThresholdSlider.minimum = 0
+    self.minThresholdSlider.maximum = 255
+    self.minThresholdSlider.value = 0
+    self.minThresholdSlider.setToolTip(
+      "Voxels with intensities lower than this threshold will be 0")
+    parametersFormLayout.addRow("minThreshold", self.minThresholdSlider)
+
+    #Create a slider that allows user to set max threshold
+    self.maxThresholdSlider = ctk.ctkSliderWidget()
+    self.maxThresholdSlider.singleStep = 1
+    self.maxThresholdSlider.minimum = 0
+    self.maxThresholdSlider.maximum = 255
+    self.maxThresholdSlider.value = 0
+    self.maxThresholdSlider.setToolTip(
+      "Voxels with intensities higher than this threshold will be 1")
+    parametersFormLayout.addRow("maxThreshold", self.maxThresholdSlider)
+
+    #TODO
+    # Add apply button
+
+
+    #TODO
+    # Add connections
+
+
   def cleanup(self):
     pass
 
@@ -156,6 +190,28 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     #Add it to slicer
     sitkUtils.PushToSlicer(smoothedImage, 'Smoothed Image')
 
+  def thresholdImage(self):
+    '''
+    Executes a threshold filter on the image and pushes it back to slicer.
+    '''
+    #Set the filter
+    thresholdFilter = SimpleITK.BinaryThresholdImageFilter()
+
+    #Get the node of the current image
+    #imageNode = slicer.util.getNode('Smoothed Image')
+    #imageToThreshold = imageNode.GetImageData()
+
+    #Pull the image from slicer
+    imageToThreshold = sitkUtils.PullFromSlicer('Smoothed Image')
+    #Set the value for something inside the threshold to be 1
+    thresholdFilter.SetInsideValue(1)
+    #Set the value for something outside the threshold to be 0
+    thresholdFilter.SetOutsideValue(0)
+
+    #execute the filter on the image
+    thresholdedImage = thresholdFilter.Execute(imageToThreshold)
+    #push it to slicer
+    sitkUtils.PushToSlicer(thresholdedImage, 'Smoothed and Thresholded Image')
 
   def test_SpineSegmentation1(self):
     """
@@ -168,6 +224,8 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     testImage = self.loadImage("/Users/Justin/GitHub/CISC472_SpineSegmentation/SpineData/007.CTDC.nrrd")
     #Add the filter
     self.addFilterToImage(testImage)
+    self.delayDisplay("Thresholding image.")
+    self.thresholdImage()
     self.delayDisplay("Testing complete.")
 
     
