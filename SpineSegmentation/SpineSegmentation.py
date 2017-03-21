@@ -86,6 +86,14 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
       "Set the minimum and maximum threshold for use with BinaryThreshold")
     parametersFormLayout.addRow("Threshold", self.ThresholdSlider)
 
+    #Create a combo box to let the user select the image filter
+    self.filterSelector = qt.QComboBox()
+    parametersFormLayout.addRow("Image Filter:", self.filterSelector)
+    self.filterSelector.addItem('Smoothing Recursive Gaussian')
+    self.filterSelector.addItem('Discrete Gaussian')
+    self.filterSelector.addItem('Shot Noise')
+    self.filterSelector.addItem('Curvature Flow')
+
     #Create the apply button
     self.applyButton = qt.QPushButton("Apply")
     self.applyButton.toolTip = "Run the algorithm."
@@ -96,6 +104,7 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
     self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
+    self.filterSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
     # Add vertical spacer
     self.layout.addStretch(1)
@@ -195,7 +204,6 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     '''
     if inputVolume == outputVolume:
       return False
-
     else:
       return True
 
