@@ -112,14 +112,24 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outputSelector.currentNode()
 
   def onApplyButton(self):
-    #When apply button is hit, get the threshold value
-    minValue = self.ThresholdSlider.minimumValue
-    maxValue = self.ThresholdSlider.maximumValue
-    #print it to console
-    print("Threshold has been set to: Min: " + str(minValue) + ", Max: " + str(maxValue))
-    #Call the logic class with the selectors and threshold
+    #Create logic instance
     logic = SpineSegmentationLogic()
-    logic.run(self.inputSelector.currentNode(), self.outputSelector.currentNode(), minValue, maxValue)
+
+    #Check to make sure input volume is not the same as output volume
+    #This will fix the user error of when the volumes change after clicking apply, then applying the same volume
+    properVolume = logic.checkInput(self.inputSelector.currentNodeID, self.outputSelector.currentNodeID)
+
+    if properVolume:
+      #When apply button is hit, get the threshold value
+      minValue = self.ThresholdSlider.minimumValue
+      maxValue = self.ThresholdSlider.maximumValue
+      #print it to console
+      print("Threshold has been set to: Min: " + str(minValue) + ", Max: " + str(maxValue))
+      #Call the logic run() with the selectors and threshold
+      logic.run(self.inputSelector.currentNode(), self.outputSelector.currentNode(), minValue, maxValue)
+
+    else: #The volumes are the same
+      print("ERROR: The input volume and output volume are the same. Please change this to continue.")
 
 
 #
@@ -177,6 +187,17 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #push it to slicer, overwrite current output node
     sitkUtils.PushToSlicer(thresholdedImage, outputName, 0, True)
 
+  def checkInput(self, inputVolume, outputVolume):
+    '''
+    :param inputVolume: the input volume node
+    :param outputVolume: the output volume node
+    :return: boolean if the nodes are the same or not.
+    '''
+    if inputVolume == outputVolume:
+      return False
+
+    else:
+      return True
 
   def run(self, inputVolume, outputVolume, minValue, maxValue):
     '''
