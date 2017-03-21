@@ -89,10 +89,11 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     #Create a combo box to let the user select the image filter
     self.filterSelector = qt.QComboBox()
     parametersFormLayout.addRow("Image Filter:", self.filterSelector)
+    self.filterSelector.addItem('No Additional Filter')
     self.filterSelector.addItem('Smoothing Recursive Gaussian')
     self.filterSelector.addItem('Discrete Gaussian')
     self.filterSelector.addItem('Shot Noise')
-    self.filterSelector.addItem('Curvature Flow')
+    self.filterSelector.addItem('Curvature Flow (Very Slow)')
 
     #Create the apply button
     self.applyButton = qt.QPushButton("Apply")
@@ -132,10 +133,16 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
       #When apply button is hit, get the threshold value
       minValue = self.ThresholdSlider.minimumValue
       maxValue = self.ThresholdSlider.maximumValue
-      #print it to console
+      #Get the filter that was selected
+      imageFilter = self.filterSelector.currentText
+
+      #print threshold to console
       print("Threshold has been set to: Min: " + str(minValue) + ", Max: " + str(maxValue))
+      #print filter to console
+      print("Image filter has been set to: " + str(imageFilter))
+
       #Call the logic run() with the selectors and threshold
-      logic.run(self.inputSelector.currentNode(), self.outputSelector.currentNode(), minValue, maxValue)
+      logic.run(self.inputSelector.currentNode(), self.outputSelector.currentNode(), minValue, maxValue, imageFilter)
 
     else: #The volumes are the same
       print("ERROR: The input volume and output volume are the same. Please change this to continue.")
@@ -155,7 +162,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def addFilterToImage(self, inputImage, outputName):
+  def addFilterToImage(self, inputImage, outputName, filterName):
     '''
     :param image, outputName: The image that requires a filter and the output name
     :return: None, adds the filter and adds to slicer
@@ -163,12 +170,23 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
 
     #Pull it from slicer
     image = sitkUtils.PullFromSlicer(inputImage)
-    #Use the gaussian image filter for smoothing
-    #https://itk.org/SimpleITKDoxygen/html/classitk_1_1simple_1_1SmoothingRecursiveGaussianImageFilter.html#details
-    #Will experiment with others later
-    imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
+
+    #Check which option the user chose.
+    if filterName == "Smoothing Recursive Gaussian":
+      imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
+    elif filterName == "Discrete Gaussian":
+      imageFilter = SimpleITK.DiscreteGaussianImageFilter()
+    elif filterName == "Shot Noise":
+      imageFilter = SimpleITK.ShotNoiseImageFilter()
+    elif filterName == "Curvature Flow":
+      imageFilter = SimpleITK.CurvatureFlowImageFilter()
+    else:
+      print("ERROR: Filter was not properly set. Using Smoothing Recursive Gaussian.")
+      imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
+
     #Execute the filter on the image
     smoothedImage = imageFilter.Execute(image)
+    #print("The " + filterName + " filter has been applied.")
     #Add it to slicer, overwrite the current node
     #True means overwrite the outputName instead of creating a new one
     sitkUtils.PushToSlicer(smoothedImage, outputName, 0, True)
@@ -207,7 +225,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     else:
       return True
 
-  def run(self, inputVolume, outputVolume, minValue, maxValue):
+  def run(self, inputVolume, outputVolume, minValue, maxValue, imageFilter):
     '''
     :param inputVolume: the input image volume
     :param outputVolume: the output image volume
@@ -220,11 +238,16 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #Get the input image name
     inputImage = inputVolume.GetName()
 
-    #Add the filter to the image
-    self.addFilterToImage(inputImage, outputVolume.GetName())
-
-    #Threshold the image with user-set threshold values
+    # Threshold the image with user-set threshold values
     self.thresholdImage(inputImage, outputVolume.GetName(), minValue, maxValue)
+
+    #Check the selected filter to see if no filter option was chosen
+    if imageFilter != "No Additional Filter":
+      #Add the filter to the image
+      self.addFilterToImage(inputImage, outputVolume.GetName(), imageFilter)
+    print("\n")
+
+
 
 
 #
