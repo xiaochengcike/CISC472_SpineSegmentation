@@ -5,6 +5,9 @@ from slicer.ScriptedLoadableModule import *
 import logging
 import sitkUtils
 import SimpleITK
+import numpy
+
+
 
 """
 Justin Gerolami - 10160479
@@ -80,8 +83,8 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     #Create a slider that allows user to set threshold
     self.ThresholdSlider = ctk.ctkRangeWidget()
     self.ThresholdSlider.singleStep = 1
-    self.ThresholdSlider.minimum = -100
-    self.ThresholdSlider.maximum = 100
+    self.ThresholdSlider.minimum = -255
+    self.ThresholdSlider.maximum = 255
     self.ThresholdSlider.setToolTip(
       "Set the minimum and maximum threshold for use with BinaryThreshold")
     parametersFormLayout.addRow("Threshold", self.ThresholdSlider)
@@ -93,7 +96,7 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.filterSelector.addItem('Smoothing Recursive Gaussian')
     self.filterSelector.addItem('Discrete Gaussian')
     self.filterSelector.addItem('Shot Noise')
-    self.filterSelector.addItem('Curvature Flow (Very Slow)')
+    self.filterSelector.addItem('Curvature Flow')
 
     #Create the apply button
     self.applyButton = qt.QPushButton("Apply")
@@ -180,6 +183,8 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
       imageFilter = SimpleITK.ShotNoiseImageFilter()
     elif filterName == "Curvature Flow":
       imageFilter = SimpleITK.CurvatureFlowImageFilter()
+      imageFilter.SetNumberOfIterations(5)
+      #imageFilter.SetTimeStep(0.125)
     else:
       print("ERROR: Filter was not properly set. Using Smoothing Recursive Gaussian.")
       imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
@@ -190,16 +195,17 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #Add it to slicer, overwrite the current node
     #True means overwrite the outputName instead of creating a new one
     sitkUtils.PushToSlicer(smoothedImage, outputName, 0, True)
+    return smoothedImage
 
 
-  def thresholdImage(self, inputImage, outputName, minValue=0, maxValue=100):
+  def thresholdImage(self, outputImage, minValue=0, maxValue=100):
     '''
     :param image, outputName, threshold values: image that requires threshold, output name, and threshold values
     Executes a threshold filter on the image and pushes it back to slicer.
     '''
 
     #Pull it from slicer
-    image = sitkUtils.PullFromSlicer(inputImage)
+    image = sitkUtils.PullFromSlicer(outputImage)
     #Set the filter
     thresholdFilter = SimpleITK.BinaryThresholdImageFilter()
     #Set the value for something inside the threshold to be 1
@@ -212,7 +218,8 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #execute the filter on the image
     thresholdedImage = thresholdFilter.Execute(image)
     #push it to slicer, overwrite current output node
-    sitkUtils.PushToSlicer(thresholdedImage, outputName, 0, True)
+    #sitkUtils.PushToSlicer(thresholdedImage, outputImage, 0, True)
+    return thresholdedImage
 
   def checkInput(self, inputVolume, outputVolume):
     '''
@@ -237,14 +244,34 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     '''
     #Get the input image name
     inputImage = inputVolume.GetName()
+    outputImage = outputVolume.GetName()
 
-    # Threshold the image with user-set threshold values
-    self.thresholdImage(inputImage, outputVolume.GetName(), minValue, maxValue)
+    #Get the image data
+    inputVolumeData = inputVolume.GetImageData()
 
     #Check the selected filter to see if no filter option was chosen
     if imageFilter != "No Additional Filter":
       #Add the filter to the image
-      self.addFilterToImage(inputImage, outputVolume.GetName(), imageFilter)
+      imgSmooth = self.addFilterToImage(inputImage, outputImage, imageFilter)
+      #imgSmooth = sitkUtils.PullFromSlicer(outputImage)
+
+    # Threshold the image with user-set threshold values
+    #imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=sitkUtils.PullFromSlicer(outputImage), seedList=[(255,0,0)], lower=minValue, upper=maxValue, replaceValue=1)
+    #sitkUtils.PushToSlicer(imgWhiteMatter, "white matter")
+    imgWhiteMatter = self.thresholdImage(outputImage, minValue, maxValue)
+    #imgWhiteMatter = sitkUtils.PullFromSlicer(outputImage)
+    sitkUtils.PushToSlicer(imgWhiteMatter, 'whiteMatter')
+
+    imgSmoothInt = SimpleITK.Cast(SimpleITK.RescaleIntensity(imgSmooth), imgWhiteMatter.GetPixelID())
+    # sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
+
+    overlay = SimpleITK.LabelOverlayImageFilter()
+    overlay.SetBackgroundValue(0)
+    overlay.SetColormap([0, 0, 0])
+    finalImage = overlay.Execute(imgWhiteMatter, imgSmoothInt)
+    sitkUtils.PushToSlicer(finalImage, outputImage, 0, True)
+
+
     print("\n")
 
 
