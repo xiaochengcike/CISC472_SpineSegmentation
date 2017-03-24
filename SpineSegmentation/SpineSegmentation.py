@@ -7,8 +7,6 @@ import sitkUtils
 import SimpleITK
 import numpy
 
-
-
 """
 Justin Gerolami - 10160479
 Cisc 472 Project - Spine Segmentation
@@ -48,6 +46,12 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
+    #Create the 'Input/Output' drop down in the module
+    IOCollapsibleButton = ctk.ctkCollapsibleButton()
+    IOCollapsibleButton.text = "Input/Output"
+    self.layout.addWidget(IOCollapsibleButton)
+    IOFormLayout = qt.QFormLayout(IOCollapsibleButton)
+
     #Create the 'parameters' drop down in the module
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
     parametersCollapsibleButton.text = "Parameters"
@@ -65,7 +69,7 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.showChildNodeTypes = False
     self.inputSelector.setMRMLScene(slicer.mrmlScene)
     self.inputSelector.setToolTip("Select the input.")
-    parametersFormLayout.addRow("Input Image Volume: ", self.inputSelector)
+    IOFormLayout.addRow("Input Image Volume: ", self.inputSelector)
 
     #Create the output selector for output volume
     self.outputSelector = slicer.qMRMLNodeComboBox()
@@ -78,17 +82,19 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.outputSelector.showChildNodeTypes = False
     self.outputSelector.setMRMLScene(slicer.mrmlScene)
     self.outputSelector.setToolTip("Select the output.")
-    parametersFormLayout.addRow("Output Image Volume: ", self.outputSelector)
+    IOFormLayout.addRow("Output Image Volume: ", self.outputSelector)
 
     #Create a slider that allows user to set threshold
     self.ThresholdSlider = ctk.ctkRangeWidget()
     self.ThresholdSlider.singleStep = 1
-    self.ThresholdSlider.minimum = -255
-    self.ThresholdSlider.maximum = 255
+    self.ThresholdSlider.minimum = -500
+    self.ThresholdSlider.maximum = 500
+    self.ThresholdSlider.setValues(200,500)
     self.ThresholdSlider.setToolTip(
       "Set the minimum and maximum threshold for use with BinaryThreshold")
     parametersFormLayout.addRow("Threshold:", self.ThresholdSlider)
 
+    """
     self.fiducialSelector = slicer.qMRMLNodeComboBox()
     self.fiducialSelector.nodeTypes = ["vtkMRMLFiducialListNode"]
     self.fiducialSelector.selectNodeUponCreation = True
@@ -100,14 +106,15 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.fiducialSelector.setMRMLScene(slicer.mrmlScene)
     self.fiducialSelector.setToolTip("Pick fiducial points for seeds of thresholding")
     parametersFormLayout.addRow("Fiducial: ", self.fiducialSelector)
+    """
 
     #Create a combo box to let the user select the image filter
     self.filterSelector = qt.QComboBox()
-    parametersFormLayout.addRow("Image Filter:", self.filterSelector)
+    parametersFormLayout.addRow("Filter:", self.filterSelector)
+    self.filterSelector.addItem('Curvature Flow')
     self.filterSelector.addItem('Smoothing Recursive Gaussian')
     self.filterSelector.addItem('Discrete Gaussian')
     self.filterSelector.addItem('Shot Noise')
-    self.filterSelector.addItem('Curvature Flow')
 
     #Create the apply button
     self.applyButton = qt.QPushButton("Apply")
@@ -262,6 +269,11 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     inputVolumeData = inputVolume.GetImageData()
     outputImage = outputVolume.GetName()
 
+    #resampleFilter = SimpleITK.ResampleImageFilter()
+    #resampleFilter.SetOutputSpacing((1,1,1))
+    #image = resampleFilter.Execute(image)
+
+
     #Add the filter to the image
     imgSmooth = self.addFilterToImage(image, outputImage, imageFilter)
 
@@ -285,9 +297,6 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
                                                               foregroundValue=1)
     #sitkUtils.PushToSlicer(imgWhiteMatterNoHoles, "imgWhiteMatter", 2, True)
 
-
-
-
     sitkUtils.PushToSlicer(imgWhiteMatterNoHoles, "imgWhiteMatter", 2, True)
     sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
 
@@ -297,9 +306,6 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     node.SetOpacity(0.5)
 
     #imgWhiteMatterVolume = slicer.util.getNode('imgWhiteMatter')
-
-
-
     print("\n")
 
 
