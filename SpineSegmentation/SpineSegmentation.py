@@ -92,7 +92,6 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     #Create a combo box to let the user select the image filter
     self.filterSelector = qt.QComboBox()
     parametersFormLayout.addRow("Image Filter:", self.filterSelector)
-    self.filterSelector.addItem('No Additional Filter')
     self.filterSelector.addItem('Smoothing Recursive Gaussian')
     self.filterSelector.addItem('Discrete Gaussian')
     self.filterSelector.addItem('Shot Noise')
@@ -165,14 +164,25 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
+  def checkInput(self, inputVolume, outputVolume):
+    '''
+    :param inputVolume: the input volume node
+    :param outputVolume: the output volume node
+    :return: boolean if the nodes are the same or not.
+    '''
+    if inputVolume == outputVolume:
+      return False
+    else:
+      return True
+
+
   def addFilterToImage(self, inputImage, outputName, filterName):
     '''
     :param image, outputName: The image that requires a filter and the output name
     :return: None, adds the filter and adds to slicer
     '''
-
     #Pull it from slicer
-    image = sitkUtils.PullFromSlicer(inputImage)
+    #image = sitkUtils.PullFromSlicer(inputImage)
 
     #Check which option the user chose.
     if filterName == "Smoothing Recursive Gaussian":
@@ -184,28 +194,29 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     elif filterName == "Curvature Flow":
       imageFilter = SimpleITK.CurvatureFlowImageFilter()
       imageFilter.SetNumberOfIterations(5)
-      #imageFilter.SetTimeStep(0.125)
     else:
       print("ERROR: Filter was not properly set. Using Smoothing Recursive Gaussian.")
       imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
 
     #Execute the filter on the image
-    smoothedImage = imageFilter.Execute(image)
+    smoothedImage = imageFilter.Execute(inputImage)
     #print("The " + filterName + " filter has been applied.")
     #Add it to slicer, overwrite the current node
     #True means overwrite the outputName instead of creating a new one
-    sitkUtils.PushToSlicer(smoothedImage, outputName, 0, True)
+
+    sitkUtils.PushToSlicer(smoothedImage, "imgSmooth", 0, True)
     return smoothedImage
 
 
-  def thresholdImage(self, outputImage, minValue=0, maxValue=100):
+
+  def thresholdImage(self, image, minValue=0, maxValue=100):
     '''
     :param image, outputName, threshold values: image that requires threshold, output name, and threshold values
     Executes a threshold filter on the image and pushes it back to slicer.
     '''
 
     #Pull it from slicer
-    image = sitkUtils.PullFromSlicer(outputImage)
+    image = sitkUtils.PullFromSlicer("imgSmooth")
     #Set the filter
     thresholdFilter = SimpleITK.BinaryThresholdImageFilter()
     #Set the value for something inside the threshold to be 1
@@ -218,19 +229,10 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #execute the filter on the image
     thresholdedImage = thresholdFilter.Execute(image)
     #push it to slicer, overwrite current output node
-    #sitkUtils.PushToSlicer(thresholdedImage, outputImage, 0, True)
+    #sitkUtils.PushToSlicer(thresholdedImage, "imgWhiteMatter",2, True)
     return thresholdedImage
 
-  def checkInput(self, inputVolume, outputVolume):
-    '''
-    :param inputVolume: the input volume node
-    :param outputVolume: the output volume node
-    :return: boolean if the nodes are the same or not.
-    '''
-    if inputVolume == outputVolume:
-      return False
-    else:
-      return True
+
 
   def run(self, inputVolume, outputVolume, minValue, maxValue, imageFilter):
     '''
@@ -242,34 +244,39 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     Gets the inputVolume name, pulls the image from slicer, adds the filter and threshold
     based on the user defined variables
     '''
-    #Get the input image name
+    #Get the input info
     inputImage = inputVolume.GetName()
+    image = sitkUtils.PullFromSlicer(inputImage)
+    inputVolumeData = inputVolume.GetImageData()
     outputImage = outputVolume.GetName()
 
-    #Get the image data
-    inputVolumeData = inputVolume.GetImageData()
-
-    #Check the selected filter to see if no filter option was chosen
-    if imageFilter != "No Additional Filter":
-      #Add the filter to the image
-      imgSmooth = self.addFilterToImage(inputImage, outputImage, imageFilter)
-      #imgSmooth = sitkUtils.PullFromSlicer(outputImage)
+    #Add the filter to the image
+    imgSmooth = self.addFilterToImage(image, outputImage, imageFilter)
 
     # Threshold the image with user-set threshold values
     #imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=sitkUtils.PullFromSlicer(outputImage), seedList=[(255,0,0)], lower=minValue, upper=maxValue, replaceValue=1)
-    #sitkUtils.PushToSlicer(imgWhiteMatter, "white matter")
-    imgWhiteMatter = self.thresholdImage(outputImage, minValue, maxValue)
-    #imgWhiteMatter = sitkUtils.PullFromSlicer(outputImage)
-    sitkUtils.PushToSlicer(imgWhiteMatter, 'whiteMatter')
-
+    imgWhiteMatter = self.thresholdImage(imgSmooth, minValue, maxValue)
+    #imgWhiteMatter = sitkUtils.PullFromSlicer("imgWhiteMatter")
+    #Rescale and cast imgSmooth to match type of imgWhiteMatter (int)
     imgSmoothInt = SimpleITK.Cast(SimpleITK.RescaleIntensity(imgSmooth), imgWhiteMatter.GetPixelID())
-    # sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
 
-    overlay = SimpleITK.LabelOverlayImageFilter()
-    overlay.SetBackgroundValue(0)
-    overlay.SetColormap([0, 0, 0])
-    finalImage = overlay.Execute(imgWhiteMatter, imgSmoothInt)
-    sitkUtils.PushToSlicer(finalImage, outputImage, 0, True)
+    #overlay = SimpleITK.LabelMapOverlayImageFilter()
+    #overlay.SetOpacity(0.6)
+    #overlay = overlay.Execute(imgSmoothInt, imgWhiteMatter)
+    #sitkUtils.PushToSlicer(overlay, 'test', 0, True)
+    # overlay imgWhiteMatter on imgSmoothInt
+
+    imgWhiteMatterNoHoles = SimpleITK.VotingBinaryHoleFilling(image1=imgWhiteMatter,
+                                                              radius=((2,2,2)),
+                                                              majorityThreshold=1,
+                                                              backgroundValue=0,
+                                                              foregroundValue=1)
+
+    sitkUtils.PushToSlicer(imgWhiteMatterNoHoles, "imgWhiteMatter", 2, True)
+    sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
+
+    #imgWhiteMatterVolume = slicer.util.getNode('imgWhiteMatter')
+
 
 
     print("\n")
