@@ -147,19 +147,16 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     logic = SpineSegmentationLogic()
 
     #Check to make sure input volume is not the same as output volume
-    #This will fix the user error of when the volumes change after clicking apply, then applying the same volume
     properVolume = logic.checkInput(self.inputSelector.currentNodeID, self.outputSelector.currentNodeID)
 
     if properVolume:
-      #When apply button is hit, get the threshold value
+      #When apply button is hit, get the values
       minValue = self.ThresholdSlider.minimumValue
       maxValue = self.ThresholdSlider.maximumValue
-      #Get the filter that was selected
       imageFilter = self.filterSelector.currentText
 
-      #print threshold to console
+      #print to console
       print("Threshold has been set to: Min: " + str(minValue) + ", Max: " + str(maxValue))
-      #print filter to console
       print("Image filter has been set to: " + str(imageFilter))
 
       #Call the logic run() with the selectors and threshold
@@ -195,14 +192,11 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
       return True
 
 
-  def addFilterToImage(self, inputImage, outputName, filterName):
+  def addFilterToImage(self, inputImage, filterName):
     '''
-    :param image, outputName: The image that requires a filter and the output name
+    :param image, filterName: The image that requires a filter and the filter name
     :return: None, adds the filter and adds to slicer
     '''
-    #Pull it from slicer
-    #image = sitkUtils.PullFromSlicer(inputImage)
-
     #Check which option the user chose.
     if filterName == "Smoothing Recursive Gaussian":
       imageFilter = SimpleITK.SmoothingRecursiveGaussianImageFilter()
@@ -219,16 +213,15 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
 
     #Execute the filter on the image
     smoothedImage = imageFilter.Execute(inputImage)
-    #print("The " + filterName + " filter has been applied.")
+
     #Add it to slicer, overwrite the current node
     #True means overwrite the outputName instead of creating a new one
-
     sitkUtils.PushToSlicer(smoothedImage, "imgSmooth", 0, True)
     return smoothedImage
 
 
 
-  def thresholdImage(self, image, minValue=0, maxValue=100):
+  def thresholdImage(self, minValue=0, maxValue=100):
     '''
     :param image, outputName, threshold values: image that requires threshold, output name, and threshold values
     Executes a threshold filter on the image and pushes it back to slicer.
@@ -266,21 +259,19 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #Get the input info
     inputImage = inputVolume.GetName()
     image = sitkUtils.PullFromSlicer(inputImage)
-    inputVolumeData = inputVolume.GetImageData()
     outputImage = outputVolume.GetName()
 
     #resampleFilter = SimpleITK.ResampleImageFilter()
     #resampleFilter.SetOutputSpacing((1,1,1))
     #image = resampleFilter.Execute(image)
 
-
     #Add the filter to the image
-    imgSmooth = self.addFilterToImage(image, outputImage, imageFilter)
+    imgSmooth = self.addFilterToImage(image, imageFilter)
 
     # Threshold the image with user-set threshold values
     #imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=sitkUtils.PullFromSlicer(outputImage), seedList=[(255,0,0)], lower=minValue, upper=maxValue, replaceValue=1)
-    imgWhiteMatter = self.thresholdImage(imgSmooth, minValue, maxValue)
-    #imgWhiteMatter = sitkUtils.PullFromSlicer("imgWhiteMatter")
+    imgWhiteMatter = self.thresholdImage(minValue, maxValue)
+
     #Rescale and cast imgSmooth to match type of imgWhiteMatter (int)
     imgSmoothInt = SimpleITK.Cast(SimpleITK.RescaleIntensity(imgSmooth), imgWhiteMatter.GetPixelID())
 
@@ -304,12 +295,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     node = slicer.util.getNode("imgWhiteMatter")
     node = node.GetScalarVolumeDisplayNode()
     node.SetOpacity(0.5)
-
-    #imgWhiteMatterVolume = slicer.util.getNode('imgWhiteMatter')
     print("\n")
-
-
-
 
 #
 #SpineSegmentationTest
@@ -388,21 +374,15 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     logic = SpineSegmentationLogic()
 
     self.delayDisplay("Running test to load and smooth image.")
+
     #Load the image
     testImage = self.loadImage("/Users/Justin/GitHub/CISC472_SpineSegmentation/SpineData/007.CTDC.nrrd")
 
+    #Create input and output nodes
     inputNode = slicer.util.getNode(testImage)
-    print(inputNode.GetName())
     outputNode = sitkUtils.CreateNewDisplayNode("output")
-    print(outputNode.GetName())
 
-    #image = sitkUtils.PullFromSlicer(testImage)
-    # Add the filter
-    logic.run(inputNode, outputNode, 0, 100, "Smoothing Recursive Gaussian")
-    #logic.addFilterToImage(image, "imgSmooth", "Smoothing Recursive Gaussian")
-    #self.delayDisplay("Thresholding image.")
-    #Add threshold
-   # thresholded = logic.thresholdImage("imgSmooth")
-    #sitkUtils.PushToSlicer(thresholded, "smoothed image")
+    #Run the segmentation
+    logic.run(inputNode, outputNode, 200, 500, "Curvature Flow")
 
     self.delayDisplay("Testing complete.")
