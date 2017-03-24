@@ -295,6 +295,9 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     node = slicer.util.getNode("imgWhiteMatter")
     node = node.GetScalarVolumeDisplayNode()
     node.SetOpacity(0.5)
+    node.modified()
+
+
     print("\n")
 
 #
@@ -332,7 +335,6 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     #There is no '/' so the imagePath should just be the file name.
     return imagePath
 
-
   def loadImage(self, imagePath):
     """
     :param imagePah: takes the image path as a parameter.
@@ -367,13 +369,12 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
 
   def test_SpineSegmentation1(self):
     """
-    test_SpineSegmentation1 is a test that will load an image from a file path, display the image, and run a filter
-    on the image to smooth it out.
+    test_SpineSegmentation1 - tests out logic.run() by auto loading everything
     """
     #Setup logic
     logic = SpineSegmentationLogic()
 
-    self.delayDisplay("Running test to load and smooth image.")
+    self.delayDisplay("Running test.")
 
     #Load the image
     testImage = self.loadImage("/Users/Justin/GitHub/CISC472_SpineSegmentation/SpineData/007.CTDC.nrrd")
