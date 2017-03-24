@@ -87,7 +87,19 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.ThresholdSlider.maximum = 255
     self.ThresholdSlider.setToolTip(
       "Set the minimum and maximum threshold for use with BinaryThreshold")
-    parametersFormLayout.addRow("Threshold", self.ThresholdSlider)
+    parametersFormLayout.addRow("Threshold:", self.ThresholdSlider)
+
+    self.fiducialSelector = slicer.qMRMLNodeComboBox()
+    self.fiducialSelector.nodeTypes = ["vtkMRMLFiducialListNode"]
+    self.fiducialSelector.selectNodeUponCreation = True
+    self.fiducialSelector.addEnabled = True
+    self.fiducialSelector.removeEnabled = True
+    self.fiducialSelector.noneEnabled = True
+    self.fiducialSelector.showHidden = False
+    self.fiducialSelector.showChildNodeTypes = False
+    self.fiducialSelector.setMRMLScene(slicer.mrmlScene)
+    self.fiducialSelector.setToolTip("Pick fiducial points for seeds of thresholding")
+    parametersFormLayout.addRow("Fiducial: ", self.fiducialSelector)
 
     #Create a combo box to let the user select the image filter
     self.filterSelector = qt.QComboBox()
@@ -271,9 +283,18 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
                                                               majorityThreshold=1,
                                                               backgroundValue=0,
                                                               foregroundValue=1)
+    #sitkUtils.PushToSlicer(imgWhiteMatterNoHoles, "imgWhiteMatter", 2, True)
+
+
+
 
     sitkUtils.PushToSlicer(imgWhiteMatterNoHoles, "imgWhiteMatter", 2, True)
     sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
+
+
+    node = slicer.util.getNode("imgWhiteMatter")
+    node = node.GetScalarVolumeDisplayNode()
+    node.SetOpacity(0.5)
 
     #imgWhiteMatterVolume = slicer.util.getNode('imgWhiteMatter')
 
