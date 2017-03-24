@@ -209,14 +209,14 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
 
 
 
-  def thresholdImage(self, image="imgSmooth", minValue=0, maxValue=100):
+  def thresholdImage(self, image, minValue=0, maxValue=100):
     '''
     :param image, outputName, threshold values: image that requires threshold, output name, and threshold values
     Executes a threshold filter on the image and pushes it back to slicer.
     '''
 
     #Pull it from slicer
-    image = sitkUtils.PullFromSlicer(image)
+    image = sitkUtils.PullFromSlicer("imgSmooth")
     #Set the filter
     thresholdFilter = SimpleITK.BinaryThresholdImageFilter()
     #Set the value for something inside the threshold to be 1
@@ -363,11 +363,19 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     self.delayDisplay("Running test to load and smooth image.")
     #Load the image
     testImage = self.loadImage("/Users/Justin/GitHub/CISC472_SpineSegmentation/SpineData/007.CTDC.nrrd")
-    #Add the filter
-    image = sitkUtils.PullFromSlicer(testImage)
-    logic.addFilterToImage(image, "imgSmooth", "Smoothing Recursive Gaussian")
-    self.delayDisplay("Thresholding image.")
+
+    inputNode = slicer.util.getNode(testImage)
+    print(inputNode.GetName())
+    outputNode = sitkUtils.CreateNewDisplayNode("output")
+    print(outputNode.GetName())
+
+    #image = sitkUtils.PullFromSlicer(testImage)
+    # Add the filter
+    logic.run(inputNode, outputNode, 0, 100, "Smoothing Recursive Gaussian")
+    #logic.addFilterToImage(image, "imgSmooth", "Smoothing Recursive Gaussian")
+    #self.delayDisplay("Thresholding image.")
     #Add threshold
-    thresholded = logic.thresholdImage("imgSmooth")
-    sitkUtils.PushToSlicer(thresholded, "smoothed image")
+   # thresholded = logic.thresholdImage("imgSmooth")
+    #sitkUtils.PushToSlicer(thresholded, "smoothed image")
+
     self.delayDisplay("Testing complete.")
