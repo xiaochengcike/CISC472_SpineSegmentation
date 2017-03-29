@@ -88,8 +88,8 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.ThresholdSlider = ctk.ctkRangeWidget()
     self.ThresholdSlider.singleStep = 1
     self.ThresholdSlider.minimum = -500
-    self.ThresholdSlider.maximum = 500
-    self.ThresholdSlider.setValues(200,500)
+    self.ThresholdSlider.maximum = 1000
+    self.ThresholdSlider.setValues(200,1000)
     self.ThresholdSlider.setToolTip(
       "Set the minimum and maximum threshold for use with BinaryThreshold")
     parametersFormLayout.addRow("Threshold:", self.ThresholdSlider)
@@ -244,7 +244,16 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #sitkUtils.PushToSlicer(thresholdedImage, "imgWhiteMatter",2, True)
     return thresholdedImage
 
-
+  def resizeImage(self, inputImage):
+    spacing = inputImage.GetSpacing()
+    size = inputImage.GetSize()
+    filter = SimpleITK.ResampleImageFilter()
+    filter.SetReferenceImage(inputImage)
+    filter.SetOutputSpacing([spacing[0] * 2, spacing[1] * 2, spacing[2] * 2])
+    filter.SetSize([size[0] / 2, size[1] / 2, size[2] / 2])
+    outputImage = filter.Execute(inputImage)
+    return outputImage
+    #sitkUtils.PushToSlicer(outputImage, 'output')
 
   def run(self, inputVolume, outputVolume, minValue, maxValue, imageFilter):
     '''
@@ -261,6 +270,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     image = sitkUtils.PullFromSlicer(inputImage)
     outputImage = outputVolume.GetName()
 
+    image = self.resizeImage(image)
     #resampleFilter = SimpleITK.ResampleImageFilter()
     #resampleFilter.SetOutputSpacing((1,1,1))
     #image = resampleFilter.Execute(image)
@@ -292,10 +302,10 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     sitkUtils.PushToSlicer(imgSmoothInt, outputImage, 0, True)
 
 
-    node = slicer.util.getNode("imgWhiteMatter")
-    node = node.GetScalarVolumeDisplayNode()
-    node.SetOpacity(0.5)
-    node.modified()
+    #node = slicer.util.getNode("imgWhiteMatter")
+    #node = node.GetScalarVolumeDisplayNode()
+    #node.SetOpacity(0.5)
+
 
 
     print("\n")
@@ -384,6 +394,6 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     outputNode = sitkUtils.CreateNewDisplayNode("output")
 
     #Run the segmentation
-    logic.run(inputNode, outputNode, 200, 500, "Curvature Flow")
+    logic.run(inputNode, outputNode, 200, 1000, "Curvature Flow")
 
     self.delayDisplay("Testing complete.")
