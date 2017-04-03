@@ -89,7 +89,7 @@ class SpineSegmentationWidget(ScriptedLoadableModuleWidget):
     self.ThresholdSlider.singleStep = 1
     self.ThresholdSlider.minimum = -500
     self.ThresholdSlider.maximum = 1000
-    self.ThresholdSlider.setValues(200,1000)
+    self.ThresholdSlider.setValues(150,1000)
     self.ThresholdSlider.setToolTip(
       "Set the minimum and maximum threshold for use with BinaryThreshold")
     parametersFormLayout.addRow("Threshold:", self.ThresholdSlider)
@@ -221,7 +221,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
 
 
 
-  def thresholdImage(self, minValue=0, maxValue=100):
+  def thresholdImage(self, minValue=150, maxValue=1000):
     '''
     :param image, outputName, threshold values: image that requires threshold, output name, and threshold values
     Executes a threshold filter on the image and pushes it back to slicer.
@@ -280,6 +280,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
 
     # Threshold the image with user-set threshold values
     #imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=sitkUtils.PullFromSlicer(outputImage), seedList=[(255,0,0)], lower=minValue, upper=maxValue, replaceValue=1)
+    
     imgWhiteMatter = self.thresholdImage(minValue, maxValue)
 
     #Rescale and cast imgSmooth to match type of imgWhiteMatter (int)
@@ -306,7 +307,7 @@ class SpineSegmentationLogic(ScriptedLoadableModuleLogic):
     #node = node.GetScalarVolumeDisplayNode()
     #node.SetOpacity(0.5)
 
-
+    
 
     print("\n")
 
@@ -394,6 +395,6 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     outputNode = sitkUtils.CreateNewDisplayNode("output")
 
     #Run the segmentation
-    logic.run(inputNode, outputNode, 200, 1000, "Curvature Flow")
+    logic.run(inputNode, outputNode, 1500, 1000, "Curvature Flow")
 
     self.delayDisplay("Testing complete.")
