@@ -395,6 +395,6 @@ class SpineSegmentationTest(ScriptedLoadableModuleTest):
     outputNode = sitkUtils.CreateNewDisplayNode("output")
 
     #Run the segmentation
-    logic.run(inputNode, outputNode, 1500, 1000, "Curvature Flow")
+    logic.run(inputNode, outputNode, 150, 1000, "Curvature Flow")
 
     self.delayDisplay("Testing complete.")
